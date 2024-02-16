@@ -10,54 +10,96 @@ use Illuminate\Support\Facades\Auth;
 class AuthController extends Controller
 {
     public $loginAfterSignUp = true;
+
+    public function __construct()
+{
+    $this->middleware('auth:sanctum')->except(['register', 'login']);
+}
+
+
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required',
+                'email' => 'required',
+                'password' => 'required',
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => bcrypt($request->password),
+            ]);
 
-        // Si se permite el inicio de sesión después del registro, entonces intenta iniciar sesión.
-        if ($this->loginAfterSignUp) {
-            return $this->login($request);
+            if ($this->loginAfterSignUp) {
+                return $this->login($request);
+            }
+            $token = $user->createToken('NombreDelToken')->plainTextToken;
+            return response()->json([
+                'status' => 'ok',
+                'name' => $user->name,
+                'data' => $user,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al registrar el usuario.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
+    }
 
-        // Si no se inicia sesión automáticamente, devuelve una respuesta de registro exitoso.
-        return response()->json([
-            'status' => 'ok',
-            'data' => $user
-        ], 200);
+    public function getUserInfo(Request $request)
+    {
+        try {
+            $user = $request->user();
+
+            if ($user) {
+                return response()->json([
+                    'status' => 'ok',
+                    'user' => $user,
+                ], 200);
+            } else {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Usuario no autenticado',
+                ], 401);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener la información del usuario.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required',
+    ]);
 
-        if (Auth::attempt(['email' => $request->email, 'password' => $request->password])) {
-            $user = Auth::user();
-            $token = $user->createToken('AuthToken')->accessToken;
-
-            return response()->json([
-                'status' => 'ok',
-                'token' => $token,
-            ]);
-        }
+    if (Auth::attempt($request->only('email', 'password'))) {
+        $user = Auth::user();
+        
+        $token = $user->createToken('NombreDelToken')->plainTextToken;
 
         return response()->json([
-            'status' => 'invalid_credentials',
-            'message' => 'Correo o contraseña no válidos',
-        ], 401);
+            'status' => 'ok',
+            'token' => $token,
+            'name' => $user->name,
+        ]);
     }
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Credenciales no válidas',
+    ], 401);
+}
+
 
     public function logout(Request $request)
     {
@@ -65,17 +107,61 @@ class AuthController extends Controller
 
         return response()->json([
             'status' => 'ok',
-            'message' => 'Cierre de sesión exitoso.'
+            'message' => 'Cierre de sesión exitoso.',
         ]);
     }
 
     public function getAuthUser(Request $request)
     {
         $user = $request->user();
-        
+
         return response()->json(['user' => $user]);
     }
 
+    public function updateName(Request $request)
+    {
+        try {
+            $request->validate([
+                'name' => 'required',
+            ]);
+    
+            $user = $request->user();
+            if ($user) {
+                print("El nombre es: " . $user->name);
+            } else {
+                print("El usuario es nulo");
+            }
+            
+            $user->name = $request->name;
+            $user->save();
+    
+            return response()->json([
+                'status' => 'ok',
+                'message' => 'Nombre de usuario actualizado exitosamente.',
+                'name' => $user->name, // Incluimos el nombre actualizado en la respuesta
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar el nombre de usuario.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+    
+    
+    
+
+    public function getUserName(Request $request)
+    {
+        if ($request->user()) {
+            $user = $request->user();
+            return response()->json(['status' => 'ok', 'name' => $user->name]);
+        } else {
+            return response()->json(['status' => 'error', 'message' => 'Usuario no autenticado'], 401);
+        }
+    }
+    
     protected function jsonResponse($data, $code = 200)
     {
         return response()->json($data, $code, ['Content-Type' => 'application/json;charset=UTF-8', 'Charset' => 'utf-8'], JSON_UNESCAPED_UNICODE);
