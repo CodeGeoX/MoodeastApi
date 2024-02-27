@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Http\Requests\RegisterAuthRequest;
 use App\Models\User;
+use App\Models\CommunityCard;
 use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
@@ -17,38 +18,40 @@ class AuthController extends Controller
 }
 
 
-    public function register(Request $request)
-    {
-        try {
-            $request->validate([
-                'name' => 'required',
-                'email' => 'required',
-                'password' => 'required',
-            ]);
+public function register(Request $request)
+{
+    try {
+        $request->validate([
+            'name' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required',
+        ]);
 
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => bcrypt($request->password),
-            ]);
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => bcrypt($request->password),
+            'avatar' => '001.png', 
+        ]);
 
-            if ($this->loginAfterSignUp) {
-                return $this->login($request);
-            }
-            $token = $user->createToken('NombreDelToken')->plainTextToken;
-            return response()->json([
-                'status' => 'ok',
-                'name' => $user->name,
-                'data' => $user,
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al registrar el usuario.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
+        $token = $user->createToken('appToken')->plainTextToken;
+
+        return response()->json([
+            'status' => 'ok',
+            'token' => $token,
+            'name' => $user->name,
+            'user_id' => $user->id, 
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al registrar el usuario.',
+            'error' => $e->getMessage(),
+        ], 500);
     }
+}
+
+
 
     public function getUserInfo(Request $request)
     {
@@ -91,6 +94,8 @@ class AuthController extends Controller
             'status' => 'ok',
             'token' => $token,
             'name' => $user->name,
+            'avatar' => $user->avatar, 
+            'user_id' => $user->id, 
         ]);
     }
 
@@ -99,6 +104,7 @@ class AuthController extends Controller
         'message' => 'Credenciales no válidas',
     ], 401);
 }
+
 
 
     public function logout(Request $request)
@@ -148,9 +154,91 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function createCommunityCard(Request $request)
+{
+    $request->validate([
+        'nombre' => 'required',
+        'perfil' => 'required',
+        'userResponse' => 'required',
+    ]);
+    
+    try {
+        $user = $request->user(); 
+        $communityCard = CommunityCard::create([
+            'nombre' => $request->nombre,
+            'perfil' => $request->perfil,
+            'userResponse' => $request->userResponse,
+            'user_id' => $user->id, 
+        ]);
+
+        return response()->json([
+            'status' => 'ok',
+            'message' => 'Tarjeta de comunidad creada exitosamente.',
+            'communityCard' => $communityCard,
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al crear la tarjeta de comunidad.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
+
+    public function updatePassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'password' => 'required',
+            ]);
+            
+            $user = $request->user();
+            $user->password = bcrypt($request->password);
+            $user->save();
+    
+            return response()->json([
+                'status' => 'ok',
+                'message' => 'Contraseña actualizada exitosamente.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar la contraseña.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
     
     
-    
+    public function updateAvatar(Request $request)
+{
+    try {
+        $request->validate([
+            'avatar' => 'required', 
+        ]);
+
+        $user = $request->user();
+        $user->avatar = $request->avatar;
+        $user->save();
+
+        return response()->json([
+            'status' => 'ok',
+            'message' => 'Avatar de usuario actualizado exitosamente.',
+            'avatar' => $user->avatar, 
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Error al actualizar el avatar del usuario.',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+
 
     public function getUserName(Request $request)
     {
