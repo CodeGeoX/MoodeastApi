@@ -19,6 +19,7 @@ class CreateCommunityCardsTable extends Migration
             $table->string('perfil');
             $table->string('userResponse');
             $table->integer('user_id');
+            
             $table->timestamps();
         });
     }
