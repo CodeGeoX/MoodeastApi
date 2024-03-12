@@ -31,4 +31,8 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(EmotionalCard::class);
     }
+    public function QuestionaryResults()
+    {
+        return $this->hasMany(QuestionaryResult::class);
+    }
 }

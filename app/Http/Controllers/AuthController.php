@@ -8,7 +8,7 @@ use App\Models\User;
 use App\Models\CommunityCard;
 use Illuminate\Support\Facades\Auth;
 use App\Models\EmotionalCard;
-
+use App\Models\QuestionaryResult;
 
 class AuthController extends Controller
 {
@@ -146,7 +146,7 @@ public function register(Request $request)
             return response()->json([
                 'status' => 'ok',
                 'message' => 'Nombre de usuario actualizado exitosamente.',
-                'name' => $user->name, // Incluimos el nombre actualizado en la respuesta
+                'name' => $user->name,  
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -309,8 +309,8 @@ public function updateCommunityCard(Request $request, $id)
 {
     $request->validate([
         'emotional_state' => 'required',
-        'emotions' => 'nullable|array', // Añadir validación para el campo emotions
-        'emotions.*' => 'string', // Asegurar que cada emoción sea una cadena de texto
+        'emotions' => 'nullable|array',  
+        'emotions.*' => 'string', 
     ]);
 
     try {
@@ -353,17 +353,14 @@ public function getEmotionalCards(Request $request)
         ], 401);
     }
 
-    // Asumiendo que tienes una relación de uno a muchos desde User a EmotionalCard
     $emotionalCards = $user->emotionalCards()->get();
 
-    // Transforma las tarjetas emocionales si es necesario para incluir datos adicionales
     $transformedCards = $emotionalCards->map(function ($card) {
         return [
             'id' => $card->id,
             'emotional_state' => $card->emotional_state,
-            'emotions' => $card->emotions, // Asegúrate de que esto devuelva una lista si es un campo de texto/array
-            'date' => $card->created_at->toDateString(), // O cualquier campo que indique la fecha de la tarjeta
-            // Puedes añadir más campos aquí según sea necesario
+            'emotions' => $card->emotions, 
+            'date' => $card->created_at->toDateString(), 
         ];
     });
 
@@ -374,28 +371,21 @@ public function getEmotionalCards(Request $request)
 }
 
 public function deleteEmotionalCard(Request $request) {
-    // Valida los datos de la solicitud
     $request->validate([
         'emotional_card_id' => 'required|exists:emotional_cards,id',
     ]);
 
     try {
-        // Encuentra la tarjeta emocional por su ID
         $emotionalCard = EmotionalCard::find($request->emotional_card_id);
 
-        // Verifica si la tarjeta existe
         if ($emotionalCard) {
-            // Elimina la tarjeta emocional
             $emotionalCard->delete();
 
-            // Retorna una respuesta exitosa
             return response()->json(['message' => 'Tarjeta emocional eliminada correctamente'], 200);
         } else {
-            // Retorna un mensaje de error si la tarjeta no existe
             return response()->json(['error' => 'La tarjeta emocional no fue encontrada'], 404);
         }
     } catch (\Exception $e) {
-        // Retorna un mensaje de error en caso de una excepción
         return response()->json(['error' => 'Error al eliminar la tarjeta emocional: ' . $e->getMessage()], 500);
     }
 }
@@ -417,7 +407,6 @@ public function updateEmotionalCard(Request $request, $id)
             ], 401);
         }
 
-        // Busca la tarjeta emocional por su ID y verifica si pertenece al usuario
         $emotionalCard = EmotionalCard::where('id', $id)->where('user_id', $user->id)->first();
 
         if (!$emotionalCard) {
@@ -427,7 +416,6 @@ public function updateEmotionalCard(Request $request, $id)
             ], 404);
         }
 
-        // Actualiza la tarjeta emocional con los nuevos datos
         $emotionalCard->update([
             'emotional_state' => $request->emotional_state,
             'emotions' => $request->emotions,
@@ -445,6 +433,39 @@ public function updateEmotionalCard(Request $request, $id)
             'error' => $e->getMessage(),
         ], 500);
     }
+}
+
+public function almacenarquestionarios(Request $request)
+    {
+        $user = $request->user();
+        $datos = $request->validate([
+            'name' => 'required|string',
+            'result' => 'required|integer',
+        ]);
+
+        $resultado = QuestionaryResult::create([
+            'name' => $datos['name'],
+            'result' => $datos['result'],
+            'user_id' => $user->id,
+        ]);
+
+        return response()->json(['mensaje' => 'Resultados almacenados correctamente'], 200);
+    }
+    public function obtenerResultadosCuestionarios(Request $request)
+{
+    $user = $request->user();
+
+    $resultados = QuestionaryResult::where('user_id', $user->id)
+                                    ->orderBy('created_at', 'desc')
+                                    ->get();
+
+    $resultadosUnicos = $resultados->unique('name');
+
+    $datosAgrupados = $resultadosUnicos->groupBy('name')->map(function ($resultadosPorNombre) {
+        return $resultadosPorNombre->avg('result');
+    });
+
+    return response()->json(['resultados' => $datosAgrupados]);
 }
 
     protected function jsonResponse($data, $code = 200)

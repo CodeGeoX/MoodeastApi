@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CommunityCardController;
 use App\Http\Controllers\FraseDiariaController;
 use App\Http\Controllers\EmotionalCardController;
+use App\Http\Controllers\ResultadosController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -26,6 +27,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/api/get-user-info', [AuthController::class, 'getUserInfo']);
     Route::post('/create-community-card', [AuthController::class, 'createCommunityCard']);
     Route::get('/community-cards', [CommunityCardController::class, 'index']);
+    Route::post('/almacenarquestionarios', [AuthController::class, 'almacenarquestionarios']);
+    Route::get('/resultados-cuestionarios', [AuthController::class, 'obtenerResultadosCuestionarios']);
+
 });
 
 
